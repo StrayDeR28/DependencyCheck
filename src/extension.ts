@@ -1,26 +1,76 @@
-// The module 'vscode' contains the VS Code extensibility API
-// Import the module and reference it with the alias vscode in your code below
 import * as vscode from 'vscode';
+import * as cp from 'child_process';
+import * as os from 'os';
 
-// This method is called when your extension is activated
-// Your extension is activated the very first time the command is executed
-export function activate(context: vscode.ExtensionContext) {
-
-	// Use the console to output diagnostic information (console.log) and errors (console.error)
-	// This line of code will only be executed once when your extension is activated
+export function activate(context: vscode.ExtensionContext) 
+{
 	console.log('Congratulations, your extension "DependencyCheck" is now active!');
+	let pathToDC = '';
 
-	// The command has been defined in the package.json file
-	// Now provide the implementation of the command with registerCommand
-	// The commandId parameter must match the command field in package.json
-	const disposable = vscode.commands.registerCommand('DependencyCheck.helloWorld', () => {
-		// The code you place here will be executed every time your command is executed
-		// Display a message box to the user
+	const execShell = (cmd: string, options: cp.ExecOptions = {}) =>
+		new Promise<string>((resolve, reject) => {
+			cp.exec(cmd, options, (err, out) => {
+				if (err) {
+						return reject(err);
+				}
+				return resolve(out);
+			});
+		});
+
+	const helloWorldCommand = vscode.commands.registerCommand('DependencyCheck.helloWorld', 
+	async () => 
+	{
 		vscode.window.showInformationMessage('Hello World from OWASP Dependency Check Extension!');
 	});
 
-	context.subscriptions.push(disposable);
+	const runDependencyCheckCommand = vscode.commands.registerCommand('DependencyCheck.runDependencyCheck', 
+	async () => 
+	{
+		if (pathToDC.length === 0) {
+			vscode.window.showInformationMessage("Set options first, no DC path");
+			return;
+		}
+
+		let projectPath = '';
+		if (vscode.workspace.workspaceFolders && vscode.workspace.workspaceFolders.length > 0) {
+			projectPath = vscode.workspace.workspaceFolders[0].uri.fsPath;
+			vscode.window.showInformationMessage(`Current project: ${projectPath}`);
+		} else {
+			vscode.window.showErrorMessage('No project folder is open.');
+			return;
+		}
+
+		let osDCCommand = '';
+		if (os.platform() === 'win32') {
+			osDCCommand = `dependency-check.bat --project "Dependency Check" --scan "${projectPath}" --out "${projectPath}"`;
+		} else {
+			osDCCommand = `./dependency-check.sh --project "Dependency Check" --scan "${projectPath}" --out "${projectPath}"`;
+		}
+
+		try {
+			vscode.window.showInformationMessage('Started Dependency Check');
+			await execShell(osDCCommand, { cwd: pathToDC });
+			vscode.window.showInformationMessage('Dependency Check finished');
+		} catch (error) {
+			vscode.window.showErrorMessage(`Error: ${(error as Error).message}`);
+		}
+	});
+
+	const setOptionsCommand = vscode.commands.registerCommand('DependencyCheck.setOptions', 
+	async () => 
+	{
+		const userInput = await vscode.window.showInputBox({
+			prompt: 'Enter path to dependency-check/bin folder',
+			placeHolder: 'Type here'
+		});
+
+		if (userInput) {
+			vscode.window.showInformationMessage(`You entered: ${userInput}`);
+			pathToDC = userInput;
+		}
+	});
+
+	context.subscriptions.push(helloWorldCommand, runDependencyCheckCommand, setOptionsCommand);
 }
 
-// This method is called when your extension is deactivated
 export function deactivate() {}
