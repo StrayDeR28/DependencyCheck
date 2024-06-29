@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Dependency Check</title>
+</head>
+<body>
+    <h1>Dependency Check</h1>
+    <button onclick="runDependencyCheck()">Run Dependency Check</button>
+    <div id="progress-container" style="margin-top: 20px;">
+      <progress id="progress-bar" value="0" max="100" style="width: 50%;"></progress>
+      <span id="progress-text">0%</span>
+    </div>
+
+    <script>
+      const vscode = acquireVsCodeApi();
+
+      function runDependencyCheck() {
+          vscode.postMessage({
+              command: 'runDependencyCheck'
+          });
+      }
+
+      window.addEventListener('message', event => {
+        const message = event.data;
+        switch (message.command) {
+          case 'updateProgress':
+            const progressBar = document.getElementById('progress-bar');
+            const progressText = document.getElementById('progress-text');
+            progressBar.value = message.progress;
+            progressText.textContent = message.progress + '%';
+            break;
+        }
+      });
+    </script>
+</body>
+</html>

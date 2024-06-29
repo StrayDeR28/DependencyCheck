@@ -16,10 +16,6 @@
       {
         "command": "dependency-check.runDependencyCheck",
         "title": "Dependency Check: DC Run"
-      },
-      {
-        "command": "dependency-check.setOptions",
-        "title": "Dependency Check: Set Options"
       }
     ],
     "configuration": {
