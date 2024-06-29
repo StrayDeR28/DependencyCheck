@@ -1,5 +1,5 @@
 {
-  "name": "dependencycheck",
+  "name": "dependency-check",
   "displayName": "OWASP Dependency Check Extension",
   "description": "Implementation of OWASP dependency check for open project",
   "version": "0.0.1",
@@ -14,18 +14,30 @@
   "contributes": {
     "commands": [
       {
-        "command": "DependencyCheck.helloWorld",
-        "title": "Hello World"
+        "command": "dependency-check.runDependencyCheck",
+        "title": "Dependency Check: DC Run"
       },
       {
-        "command": "DependencyCheck.runDependencyCheck",
-        "title": "DC Run"
-      },
-      {
-        "command": "DependencyCheck.setOptions",
-        "title": "Set Options"
+        "command": "dependency-check.setOptions",
+        "title": "Dependency Check: Set Options"
       }
-    ]
+    ],
+    "configuration": {
+      "type": "object",
+      "title": "Dependency Check Settings",
+      "properties": {
+        "dependency-check.pathToDC": {
+          "type": "string",
+          "default": "",
+          "description": "Write here path to the dependency-check bin folder (C:\\dependency-check\\bin)"
+        },
+        "dependency-check.pathToMaven": {
+          "type": "string",
+          "default": "",
+          "description": "Write here path to the Maven"
+        }
+      }
+    }
   },
   "scripts": {
     "vscode:prepublish": "npm run compile",

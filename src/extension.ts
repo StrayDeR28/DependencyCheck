@@ -5,7 +5,6 @@ import * as os from 'os';
 export function activate(context: vscode.ExtensionContext) 
 {
 	console.log('Congratulations, your extension "DependencyCheck" is now active!');
-	let pathToDC = '';
 
 	const execShell = (cmd: string, options: cp.ExecOptions = {}) =>
 		new Promise<string>((resolve, reject) => {
@@ -17,17 +16,14 @@ export function activate(context: vscode.ExtensionContext)
 			});
 		});
 
-	const helloWorldCommand = vscode.commands.registerCommand('DependencyCheck.helloWorld', 
+	
+	const runDependencyCheckCommand = vscode.commands.registerCommand('dependency-check.runDependencyCheck', 
 	async () => 
 	{
-		vscode.window.showInformationMessage('Hello World from OWASP Dependency Check Extension!');
-	});
-
-	const runDependencyCheckCommand = vscode.commands.registerCommand('DependencyCheck.runDependencyCheck', 
-	async () => 
-	{
+		const config = vscode.workspace.getConfiguration('dependency-check');
+		const pathToDC = config.get<string>('pathToDC', '');
 		if (pathToDC.length === 0) {
-			vscode.window.showInformationMessage("Set options first, no DC path");
+			vscode.window.showInformationMessage("Set options first, path to DC is empty");
 			return;
 		}
 
@@ -36,7 +32,7 @@ export function activate(context: vscode.ExtensionContext)
 			projectPath = vscode.workspace.workspaceFolders[0].uri.fsPath;
 			vscode.window.showInformationMessage(`Current project: ${projectPath}`);
 		} else {
-			vscode.window.showErrorMessage('No project folder is open.');
+			vscode.window.showErrorMessage('No project folder is currently open');
 			return;
 		}
 
@@ -56,21 +52,33 @@ export function activate(context: vscode.ExtensionContext)
 		}
 	});
 
-	const setOptionsCommand = vscode.commands.registerCommand('DependencyCheck.setOptions', 
+	const setOptionsCommand = vscode.commands.registerCommand('dependency-check.setOptions', 
 	async () => 
 	{
-		const userInput = await vscode.window.showInputBox({
+		const config = vscode.workspace.getConfiguration('dependency-check');
+		const userInputDC = await vscode.window.showInputBox({
 			prompt: 'Enter path to dependency-check/bin folder',
 			placeHolder: 'Type here'
 		});
 
-		if (userInput) {
-			vscode.window.showInformationMessage(`You entered: ${userInput}`);
-			pathToDC = userInput;
+		if (userInputDC) {
+			vscode.window.showInformationMessage(`You entered: ${userInputDC}`);
+			await config.update('pathToDC', userInputDC, vscode.ConfigurationTarget.Global);
 		}
+
+		const userInputMaven = await vscode.window.showInputBox({
+			prompt: 'Enter path to Maven executable',
+			placeHolder: 'Type here'
+		});
+
+		if (userInputMaven) {
+			vscode.window.showInformationMessage(`You entered: ${userInputMaven}`);
+			await config.update('pathToMaven', userInputMaven, vscode.ConfigurationTarget.Global);
+		}
+
 	});
 
-	context.subscriptions.push(helloWorldCommand, runDependencyCheckCommand, setOptionsCommand);
+	context.subscriptions.push(runDependencyCheckCommand, setOptionsCommand);
 }
 
 export function deactivate() {}
