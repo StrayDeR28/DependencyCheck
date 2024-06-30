@@ -165,7 +165,7 @@ const getVulnerableDependencies = (json: any): VulnerableDependency[] => {
 
 const generateHtmlReport = (dependencies: VulnerableDependency[]): string => {
 	let html = `
-		<table border="1" style="width: 100%; border-collapse: collapse;">
+		<table border="1" style="width: 50%; border-collapse: collapse;">
 			<thead>
 				<tr>
 					<th>File Name</th>
