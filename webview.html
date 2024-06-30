@@ -2,37 +2,89 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Dependency Check</title>
+  <style>
+    #progress-bar {
+      width: 50%;
+      background-color: #ddd;
+    }
+    #progress-bar-fill {
+      width: 0%;
+      height: 30px;
+      background-color: #4caf50;
+      text-align: center;
+      line-height: 30px;
+      color: white;
+    }
+  </style>
 </head>
 <body>
-    <h1>Dependency Check</h1>
-    <button onclick="runDependencyCheck()">Run Dependency Check</button>
-    <div id="progress-container" style="margin-top: 20px;">
-      <progress id="progress-bar" value="0" max="100" style="width: 50%;"></progress>
-      <span id="progress-text">0%</span>
-    </div>
+  <h1>Dependency Check</h1>
+  <button id="start-btn">Start Dependency Check</button>
+  <div id="progress-bar">
+    <div id="progress-bar-fill">0%</div>
+  </div>
 
-    <script>
-      const vscode = acquireVsCodeApi();
+  <script>
+    const vscode = acquireVsCodeApi();
 
-      function runDependencyCheck() {
-          vscode.postMessage({
-              command: 'runDependencyCheck'
-          });
+    document.getElementById('start-btn').addEventListener('click', () => {
+      vscode.postMessage({ command: 'runDependencyCheck' });
+      document.getElementById('start-btn').disabled = true;
+    });
+
+    window.addEventListener('message', event => {
+      const message = event.data;
+      switch (message.command) {
+        case 'startFakeProgress':
+          startFakeProgress();
+          break;
       }
+    });
 
-      window.addEventListener('message', event => {
-        const message = event.data;
-        switch (message.command) {
-          case 'updateProgress':
-            const progressBar = document.getElementById('progress-bar');
-            const progressText = document.getElementById('progress-text');
-            progressBar.value = message.progress;
-            progressText.textContent = message.progress + '%';
-            break;
+    function startFakeProgress() {
+      let progress = 0;
+      const progressBarFill = document.getElementById('progress-bar-fill');
+      const interval = setInterval(() => {
+        progress += Math.random() * (4.1 - 0.4) + 0.4;
+        if (progress >= 90) {
+            clearInterval(interval);
+            progress = 90;
         }
-      });
-    </script>
+        progressBarFill.style.width = `${progress}%`;
+        progressBarFill.textContent = `${progress.toFixed(1)}%`;
+      }, 500);
+
+      const finishHandler = (event) => {
+        if (event.data.command === 'finishFakeProgress') {
+          clearInterval(interval);
+          let currentProgress = progress;
+          const finishInterval = setInterval(() => {
+            currentProgress += Math.random() * (15.2 - 9.6) + 9.6;
+            if (currentProgress >= 100) {
+              clearInterval(finishInterval);
+              currentProgress = 100;
+
+              document.getElementById('start-btn').disabled = false;
+            }
+            progressBarFill.style.width = `${currentProgress}%`;
+            progressBarFill.textContent = `${currentProgress.toFixed(1)}%`;
+          }, 500);
+        }
+      };
+      window.addEventListener('message', finishHandler, { once: true });
+
+      const errorHandler = (event) => {
+        if (event.data.command === 'errorInFakeProgress') {
+        clearInterval(interval);
+        progressBarFill.style.width = `0%`;
+        progressBarFill.textContent = `0%`;
+
+        document.getElementById('start-btn').disabled = false;
+        }
+      };
+      window.addEventListener('message', errorHandler, { once: true });
+    }
+  </script>
 </body>
 </html>

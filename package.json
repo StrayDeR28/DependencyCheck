@@ -14,7 +14,7 @@
   "contributes": {
     "commands": [
       {
-        "command": "dependency-check.runDependencyCheck",
+        "command": "dependency-check.showExtensionWindow",
         "title": "Dependency Check: DC Run"
       }
     ],
