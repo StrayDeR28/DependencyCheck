@@ -47,15 +47,26 @@ export function activate(context: vscode.ExtensionContext)
 					switch (message.command) {
 						case 'runDependencyCheck':
 							const dcData = setConfigurationForDC();
-							if (!dcData) {return;}
-							const { pathToDC, osDCCommand } = dcData;
+							if (!dcData) {
+								currentPanel?.webview.postMessage({ command: 'enableStartDCButton' });
+								return;
+							}
+							const { pathToDC, osDCCommand, projectPath } = dcData;
 
 							currentPanel?.webview.postMessage({ command: 'startFakeProgress' });
 							try {
 								vscode.window.showInformationMessage('Started Dependency Check');
 								await execShell(osDCCommand, { cwd: pathToDC });
+								
 								currentPanel?.webview.postMessage({ command: 'finishFakeProgress' });
-							} catch (error) {
+								//вывод результатов проверки
+								const jsonFilePath = path.join(projectPath, 'dependency-check-report.json');
+								const jsonData = parseJsonFile(jsonFilePath);
+								const vulnerableDependencies = getVulnerableDependencies(jsonData);
+								const reportHtml = generateHtmlReport(vulnerableDependencies);
+								currentPanel?.webview.postMessage({ command: 'updateReport', html: reportHtml });
+							} 
+							catch (error) {
 								vscode.window.showErrorMessage(`Error: ${(error as Error).message}`);
 								currentPanel?.webview.postMessage({ command: 'errorInFakeProgress' });
 							}
@@ -81,7 +92,7 @@ export function activate(context: vscode.ExtensionContext)
 
 export function deactivate() {}
 
-function setConfigurationForDC(): {pathToDC: string, osDCCommand: string} | undefined {
+function setConfigurationForDC(): {pathToDC: string, osDCCommand: string, projectPath: string} | undefined {
 	const config = vscode.workspace.getConfiguration('dependency-check');
 	const pathToDC = config.get<string>('pathToDC', '');
 	if (pathToDC.length === 0) {
@@ -105,5 +116,88 @@ function setConfigurationForDC(): {pathToDC: string, osDCCommand: string} | unde
 		osDCCommand = `./dependency-check.sh --project "Dependency Check" --scan "${projectPath}" --out "${projectPath}" --noupdate --prettyPrint --format "JSON"`;
 	}
 
-	return {pathToDC, osDCCommand};
+	return {pathToDC, osDCCommand, projectPath};
 }
+
+class VulnerableDependency {
+	fileName: string;
+	filePath: string;
+	description: string;
+	vulnerabilities: { name: string; severity: string; description: string }[];
+
+	constructor(fileName: string, filePath: string, description: string, vulnerabilities: { name: string; severity: string; description: string }[]) {
+		this.fileName = fileName;
+		this.filePath = filePath;
+		this.description = description;
+		this.vulnerabilities = vulnerabilities;
+	}
+
+	static fromJson(json: any): VulnerableDependency | null {
+		if (!json.vulnerabilities || json.vulnerabilities.length === 0) {
+			return null;
+		}
+
+		const vulnerabilities = json.vulnerabilities.map((vul: any) => ({
+			name: vul.name,
+			severity: vul.severity,
+			description: vul.description
+		}));
+
+		return new VulnerableDependency(
+			json.fileName,
+			json.filePath,
+			json.description || '',
+			vulnerabilities
+		);
+	}
+}
+
+const parseJsonFile = (filePath: string): any => {
+	const data = fs.readFileSync(filePath, 'utf8');
+	return JSON.parse(data);
+};
+
+const getVulnerableDependencies = (json: any): VulnerableDependency[] => {
+	return json.dependencies
+			.map((dep: any) => VulnerableDependency.fromJson(dep))
+			.filter((dep: VulnerableDependency | null) => dep !== null) as VulnerableDependency[];
+};
+
+const generateHtmlReport = (dependencies: VulnerableDependency[]): string => {
+	let html = `
+		<table border="1" style="width: 100%; border-collapse: collapse;">
+			<thead>
+				<tr>
+					<th>File Name</th>
+					<th>File Path</th>
+					<th>Description</th>
+					<th>Vulnerabilities</th>
+				</tr>
+			</thead>
+			<tbody>
+	`;
+
+	dependencies.forEach(dep => {
+		dep.vulnerabilities.forEach(vul => {
+			html += `
+				<tr>
+					<td>${dep.fileName}</td>
+					<td>${dep.filePath}</td>
+					<td>${dep.description}</td>
+					<td>
+						<strong>Name:</strong> ${vul.name} <br>
+						<strong>Severity:</strong> ${vul.severity} <br>
+						<strong>Description:</strong> ${vul.description}
+					</td>
+				</tr>
+			`;
+		});
+	});
+
+	html += `
+				</tbody>
+		</table>
+	`;
+
+	return html;
+};

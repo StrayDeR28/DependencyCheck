@@ -16,6 +16,18 @@
       line-height: 30px;
       color: white;
     }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+    th, td {
+      border: 1px solid black;
+      padding: 8px;
+      text-align: left;
+    }
+    th {
+      background-color: #f2f2f2;
+    }
   </style>
 </head>
 <body>
@@ -24,9 +36,12 @@
   <div id="progress-bar">
     <div id="progress-bar-fill">0%</div>
   </div>
+  <div id="report-container"></div>
 
   <script>
     const vscode = acquireVsCodeApi();
+    let progressInterval = null;
+    let finishInterval = null;
 
     document.getElementById('start-btn').addEventListener('click', () => {
       vscode.postMessage({ command: 'runDependencyCheck' });
@@ -39,51 +54,60 @@
         case 'startFakeProgress':
           startFakeProgress();
           break;
+        case 'enableStartDCButton':
+          document.getElementById('start-btn').disabled = false;
+          break;
+        case 'updateReport':
+          document.getElementById('report-container').innerHTML += message.html;
+          break;
+        case 'finishFakeProgress':
+          finishFakeProgress();
+          break;
+        case 'errorInFakeProgress':
+          errorInFakeProgress();
+          break;
       }
     });
 
     function startFakeProgress() {
       let progress = 0;
       const progressBarFill = document.getElementById('progress-bar-fill');
-      const interval = setInterval(() => {
+      progressInterval = setInterval(() => {
         progress += Math.random() * (4.1 - 0.4) + 0.4;
         if (progress >= 90) {
-            clearInterval(interval);
-            progress = 90;
+          clearInterval(progressInterval);
+          progress = 90;
         }
         progressBarFill.style.width = `${progress}%`;
         progressBarFill.textContent = `${progress.toFixed(1)}%`;
       }, 500);
+    }
 
-      const finishHandler = (event) => {
-        if (event.data.command === 'finishFakeProgress') {
-          clearInterval(interval);
-          let currentProgress = progress;
-          const finishInterval = setInterval(() => {
-            currentProgress += Math.random() * (15.2 - 9.6) + 9.6;
-            if (currentProgress >= 100) {
-              clearInterval(finishInterval);
-              currentProgress = 100;
+    function finishFakeProgress() {
+      if (progressInterval) { clearInterval(progressInterval); }
 
-              document.getElementById('start-btn').disabled = false;
-            }
-            progressBarFill.style.width = `${currentProgress}%`;
-            progressBarFill.textContent = `${currentProgress.toFixed(1)}%`;
-          }, 500);
+      const progressBarFill = document.getElementById('progress-bar-fill');
+      let currentProgress = parseFloat(progressBarFill.textContent);
+      finishInterval = setInterval(() => {
+        currentProgress += Math.random() * (15.2 - 9.6) + 9.6;
+        if (currentProgress >= 100) {
+          clearInterval(finishInterval);
+          currentProgress = 100;
+          document.getElementById('start-btn').disabled = false;
         }
-      };
-      window.addEventListener('message', finishHandler, { once: true });
+        progressBarFill.style.width = `${currentProgress}%`;
+        progressBarFill.textContent = `${currentProgress.toFixed(1)}%`;
+      }, 500);
+    }
 
-      const errorHandler = (event) => {
-        if (event.data.command === 'errorInFakeProgress') {
-        clearInterval(interval);
-        progressBarFill.style.width = `0%`;
-        progressBarFill.textContent = `0%`;
-
-        document.getElementById('start-btn').disabled = false;
-        }
-      };
-      window.addEventListener('message', errorHandler, { once: true });
+    function errorInFakeProgress() {
+      if (progressInterval) { clearInterval(progressInterval); }
+      if (finishInterval) { clearInterval(finishInterval); }
+      
+      const progressBarFill = document.getElementById('progress-bar-fill');
+      progressBarFill.style.width = `0%`;
+      progressBarFill.textContent = `0%`;
+      document.getElementById('start-btn').disabled = false;
     }
   </script>
 </body>
