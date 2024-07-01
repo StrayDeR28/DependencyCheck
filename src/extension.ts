@@ -153,8 +153,14 @@ class VulnerableDependency {
 }
 
 const parseJsonFile = (filePath: string): any => {
-	const data = fs.readFileSync(filePath, 'utf8');
-	return JSON.parse(data);
+	try{
+		const data = fs.readFileSync(filePath, 'utf8');
+		return JSON.parse(data);
+	}
+	catch(error){
+		vscode.window.showErrorMessage(`Error: ${(error as Error).message}`);
+		return;
+	}
 };
 
 const getVulnerableDependencies = (json: any): VulnerableDependency[] => {
@@ -165,7 +171,7 @@ const getVulnerableDependencies = (json: any): VulnerableDependency[] => {
 
 const generateHtmlReport = (dependencies: VulnerableDependency[]): string => {
 	let html = `
-		<table border="1" style="width: 50%; border-collapse: collapse;">
+		<table>
 			<thead>
 				<tr>
 					<th>File Name</th>
@@ -181,7 +187,7 @@ const generateHtmlReport = (dependencies: VulnerableDependency[]): string => {
 		dep.vulnerabilities.forEach(vul => {
 			html += `
 				<tr>
-					<td>${dep.fileName}</td>
+					<td><strong>${dep.fileName}</strong></td>
 					<td>${dep.filePath}</td>
 					<td>${dep.description}</td>
 					<td>
