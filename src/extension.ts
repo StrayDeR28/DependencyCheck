@@ -6,10 +6,7 @@ import * as fs from 'fs';
 
 export function activate(context: vscode.ExtensionContext) 
 {
-	console.log('Congratulations, your extension "DependencyCheck" is now active!');
-
-	let currentPanel: vscode.WebviewPanel | undefined = undefined;
-
+	// Terminal runner
 	const execShell = (cmd: string, options: cp.ExecOptions = {}) =>
 		new Promise<string>((resolve, reject) => {
 			cp.exec(cmd, options, (err, out) => {
@@ -17,6 +14,8 @@ export function activate(context: vscode.ExtensionContext)
 				return resolve(out);
 			});
 		});
+		
+	let currentPanel: vscode.WebviewPanel | undefined = undefined;
 
 	const showExtensionWindowCommand = vscode.commands.registerCommand('dependency-check.showExtensionWindow', 
 	async () => 
@@ -43,38 +42,7 @@ export function activate(context: vscode.ExtensionContext)
 			currentPanel.webview.html = htmlContent;
 
 			currentPanel.webview.onDidReceiveMessage(
-				async message => {
-					switch (message.command) {
-						case 'runDependencyCheck':
-							
-							const dcData = setConfigurationForDC();
-							if (!dcData) {
-								currentPanel?.webview.postMessage({ command: 'enableStartDCButton' });
-								return;
-							}
-							const { pathToDC, osDCCommand, projectPath } = dcData;
-
-							currentPanel?.webview.postMessage({ command: 'startFakeProgress' });
-							try {
-								vscode.window.showInformationMessage('Started Dependency Check');
-								await execShell(osDCCommand, { cwd: pathToDC });
-								
-								currentPanel?.webview.postMessage({ command: 'finishFakeProgress' });
-								// Creating DC report
-								const jsonFilePath = path.join(projectPath, 'dependency-check-report.json');
-								const jsonData = parseJsonFile(jsonFilePath);
-								const vulnerableDependencies = getVulnerableDependencies(jsonData);
-								const reportHtml = generateHtmlReport(vulnerableDependencies);
-								currentPanel?.webview.postMessage({ command: 'updateReport', html: reportHtml });
-							} 
-							catch (error) {
-								vscode.window.showErrorMessage(`Error: ${(error as Error).message}`);
-								currentPanel?.webview.postMessage({ command: 'errorInFakeProgress' });
-							}
-
-							break;
-					}
-				},
+				message => handleWebviewMessage(message, currentPanel, execShell),
 				undefined,
 				context.subscriptions
 			);
@@ -104,9 +72,60 @@ export function activate(context: vscode.ExtensionContext)
 	});
 
 	context.subscriptions.push(showExtensionWindowCommand, checkInstrumentsInstallationCommand);
+
+	// Tracking changes in files with dependencies
+	if (vscode.workspace.workspaceFolders) {
+		const dependencyFiles = ['package.json', 'packages-lock.json', 'pom.xml', 'build.gradle', 'yarn.lock']; // List of files with dependencies
+		const watchers = dependencyFiles.map(file =>
+			vscode.workspace.createFileSystemWatcher(new vscode.RelativePattern(vscode.workspace.workspaceFolders![0], `**/${file}`))
+		);
+
+		watchers.forEach(watcher => {
+			watcher.onDidChange(uri => handleDependencyFileChange(uri));
+			watcher.onDidCreate(uri => handleDependencyFileChange(uri));
+			watcher.onDidDelete(uri => handleDependencyFileChange(uri));
+		});
+
+		context.subscriptions.push(...watchers);
+	}
 }
 
 export function deactivate() {}
+
+async function handleWebviewMessage(message: any, currentPanel: vscode.WebviewPanel | undefined, execShell: (cmd: string, options?: cp.ExecOptions) => Promise<string>) {
+	switch (message.command) {
+		case 'runDependencyCheck':
+			await runDependencyCheck(currentPanel, execShell);
+			break;
+	}
+}
+
+// Main function, that starts DC
+async function runDependencyCheck(currentPanel: vscode.WebviewPanel | undefined, execShell: (cmd: string, options?: cp.ExecOptions) => Promise<string>) {
+	const dcData = setConfigurationForDC();
+	if (!dcData) {
+		currentPanel?.webview.postMessage({ command: 'enableStartDCButton' });
+		return;
+	}
+	const { pathToDC, osDCCommand, projectPath } = dcData;
+
+	currentPanel?.webview.postMessage({ command: 'startFakeProgress' });
+	try {
+		vscode.window.showInformationMessage('Started Dependency Check');
+		await execShell(osDCCommand, { cwd: pathToDC });
+		currentPanel?.webview.postMessage({ command: 'finishFakeProgress' });
+		// Creating DC report
+		const jsonFilePath = path.join(projectPath, 'dependency-check-report.json');
+		const jsonData = parseJsonFile(jsonFilePath);
+		const vulnerableDependencies = getVulnerableDependencies(jsonData);
+		const reportHtml = generateHtmlReport(vulnerableDependencies);
+		currentPanel?.webview.postMessage({ command: 'updateReport', html: reportHtml });
+	} 
+	catch (error) {
+		vscode.window.showErrorMessage(`Error: ${(error as Error).message}`);
+		currentPanel?.webview.postMessage({ command: 'errorInFakeProgress' });
+	}
+}
 
 function setConfigurationForDC(): {pathToDC: string, osDCCommand: string, projectPath: string} | undefined {
 	const config = vscode.workspace.getConfiguration('dependency-check');
@@ -119,7 +138,6 @@ function setConfigurationForDC(): {pathToDC: string, osDCCommand: string, projec
 	let projectPath = '';
 	if (vscode.workspace.workspaceFolders && vscode.workspace.workspaceFolders.length > 0) {
 		projectPath = vscode.workspace.workspaceFolders[0].uri.fsPath;
-		//vscode.window.showInformationMessage(`Current project: ${projectPath}`);
 	} else {
 		vscode.window.showErrorMessage('No project folder is currently open');
 		return;
@@ -135,6 +153,16 @@ function setConfigurationForDC(): {pathToDC: string, osDCCommand: string, projec
 	return {pathToDC, osDCCommand, projectPath};
 }
 
+function handleDependencyFileChange(uri: vscode.Uri) {
+	vscode.window.showInformationMessage('Dependency file changed. Do you want to run the Dependency Check?', 'Yes', 'No')
+		.then(selection => {
+			if (selection === 'Yes') {
+				vscode.commands.executeCommand('dependency-check.showExtensionWindow');
+			}
+		});
+}
+
+// All below - DC report components
 class VulnerableDependency {
 	fileName: string;
 	filePath: string;
