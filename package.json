@@ -15,7 +15,10 @@
     "commands": [
       {
         "command": "dependency-check.showExtensionWindow",
-        "title": "Dependency Check: DC Run"
+        "title": "Dependency Check: Open dependency-check window"
+      }, {
+        "command": "dependency-check.checkInstrumentsInstallation",
+        "title": "Dependency Check: Check installation of instruments for DC (Java, Maven, etc.)"
       }
     ],
     "configuration": {
@@ -31,6 +34,11 @@
           "type": "string",
           "default": "",
           "description": "Write here path to the Maven"
+        },
+        "dependency-check.pathToJava": {
+          "type": "string",
+          "default": "C:\\Program Files (x86)\\Common Files\\Oracle\\Java\\java8path",
+          "description": "Write here path to the Java. But Will configure automatically"
         }
       }
     }

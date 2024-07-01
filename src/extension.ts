@@ -46,6 +46,7 @@ export function activate(context: vscode.ExtensionContext)
 				async message => {
 					switch (message.command) {
 						case 'runDependencyCheck':
+							
 							const dcData = setConfigurationForDC();
 							if (!dcData) {
 								currentPanel?.webview.postMessage({ command: 'enableStartDCButton' });
@@ -59,7 +60,7 @@ export function activate(context: vscode.ExtensionContext)
 								await execShell(osDCCommand, { cwd: pathToDC });
 								
 								currentPanel?.webview.postMessage({ command: 'finishFakeProgress' });
-								//вывод результатов проверки
+								// Creating DC report
 								const jsonFilePath = path.join(projectPath, 'dependency-check-report.json');
 								const jsonData = parseJsonFile(jsonFilePath);
 								const vulnerableDependencies = getVulnerableDependencies(jsonData);
@@ -70,6 +71,7 @@ export function activate(context: vscode.ExtensionContext)
 								vscode.window.showErrorMessage(`Error: ${(error as Error).message}`);
 								currentPanel?.webview.postMessage({ command: 'errorInFakeProgress' });
 							}
+
 							break;
 					}
 				},
@@ -87,7 +89,21 @@ export function activate(context: vscode.ExtensionContext)
 		}
 	});
 
-	context.subscriptions.push(showExtensionWindowCommand);
+	const checkInstrumentsInstallationCommand = vscode.commands.registerCommand('dependency-check.checkInstrumentsInstallation', 
+	async () => {
+		const commands = ['npm -v', 'mvn -v', 'java -version', 'node -v'];
+    for (const command of commands) {
+			try {
+				const output = await execShell(command);
+				vscode.window.showInformationMessage(`${command.split(' ')[0]} installed, version: ${output}`);
+			} 
+			catch (error) {
+				vscode.window.showErrorMessage(`Error with ${command.split(' ')[0]}: ${(error as Error).message}`);
+			}
+    }
+	});
+
+	context.subscriptions.push(showExtensionWindowCommand, checkInstrumentsInstallationCommand);
 }
 
 export function deactivate() {}

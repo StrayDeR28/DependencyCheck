@@ -110,14 +110,14 @@
       let progress = 0;
       const progressBarFill = document.getElementById('progress-bar-fill');
       progressInterval = setInterval(() => {
-        progress += Math.random() * (4.1 - 0.4) + 0.4;//hardcoded
+        progress += Math.random() * (0.4 - 0.1) + 0.1;//hardcoded
         if (progress >= 90) {
           clearInterval(progressInterval);
           progress = 90;
         }
         progressBarFill.style.width = `${progress}%`;
         progressBarFill.textContent = `${progress.toFixed(1)}%`;
-      }, 500);
+      }, 200);
     }
 
     function finishFakeProgress() {
@@ -134,7 +134,7 @@
         }
         progressBarFill.style.width = `${currentProgress}%`;
         progressBarFill.textContent = `${currentProgress.toFixed(1)}%`;
-      }, 500);
+      }, 200);
     }
 
     function errorInFakeProgress() {
