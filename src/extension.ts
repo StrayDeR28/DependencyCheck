@@ -71,7 +71,55 @@ export function activate(context: vscode.ExtensionContext)
     }
 	});
 
-	context.subscriptions.push(showExtensionWindowCommand, checkInstrumentsInstallationCommand);
+	// Command to update Dependency Check 
+	const updateDependencyCheckCommand = vscode.commands.registerCommand('dependency-check.updateDependencyCheck', async () => {
+		const config = vscode.workspace.getConfiguration('dependency-check');
+		const pathToDC = config.get<string>('pathToDC', '');
+		if (!pathToDC) {
+			vscode.window.showErrorMessage("Set extension options first, path to DC 'bin' folder is empty");
+			return;
+		}
+
+		const dcFolderPath = path.dirname(pathToDC);
+		try {
+			const isWindows = os.platform() === 'win32';
+			
+			// Getting latest version and compare it to current, may be bugs here
+			const versionCommand = `curl https://jeremylong.github.io/DependencyCheck/current.txt`;
+			const version = (await execShell(versionCommand)).trim();
+			const currentVersion: Array<string> = (await execShell("dependency-check.bat -v",{ cwd: pathToDC })).trim().split(" ");
+			if (currentVersion.length > 0 && version === currentVersion[currentVersion.length-1]) {
+				vscode.window.showInformationMessage(`Current version is up to date`);
+				return;
+			}
+
+			// Clearing the DC folder
+			const deleteCommand = isWindows ? `rd /s /q "${dcFolderPath}"` : `rm -rf "${dcFolderPath}/*"`;
+			await execShell(deleteCommand);
+			vscode.window.showInformationMessage(`DC deleted`);
+
+			// Uploading zip
+			const FolderForDCPath = path.dirname(dcFolderPath)
+			const zipPath = path.join(FolderForDCPath, 'dependency-check.zip');
+			vscode.window.showInformationMessage(`Zip path: ${zipPath}`);
+			const downloadCommand = `curl -L "https://github.com/jeremylong/DependencyCheck/releases/download/v${version}/dependency-check-${version}-release.zip" --output-dir "${FolderForDCPath}" --output "dependency-check.zip"`;
+			await execShell(downloadCommand);
+			//vscode.window.showInformationMessage(`Zip downloaded`);
+
+			// Unzipping
+			const unzipCommand = isWindows ? `powershell -command "Expand-Archive -Path '${zipPath}' -DestinationPath '${FolderForDCPath}' -Force"` : `unzip -o "${zipPath}" -d "${FolderForDCPath}"`;
+			await execShell(unzipCommand);
+			//vscode.window.showInformationMessage(`Unzipped`);
+
+			// Deleting zip
+			await execShell(isWindows ? `del "${zipPath}"` : `rm "${zipPath}"`);
+			vscode.window.showInformationMessage(`Dependency Check updated to version ${version}`);
+		} catch (error) {
+			vscode.window.showErrorMessage(`Error updating Dependency Check: ${(error as Error).message}`);
+		}
+	});
+
+	context.subscriptions.push(showExtensionWindowCommand, checkInstrumentsInstallationCommand, updateDependencyCheckCommand);
 
 	// Tracking changes in files with dependencies
 	if (vscode.workspace.workspaceFolders) {

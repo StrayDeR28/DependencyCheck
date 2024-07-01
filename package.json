@@ -19,6 +19,9 @@
       }, {
         "command": "dependency-check.checkInstrumentsInstallation",
         "title": "Dependency Check: Check installation of instruments for DC (Java, Maven, etc.)"
+      },{
+        "command": "dependency-check.updateDependencyCheck",
+        "title": "Dependency Check: Upload and install latest version of DC"
       }
     ],
     "configuration": {
