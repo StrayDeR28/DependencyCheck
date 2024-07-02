@@ -15,13 +15,13 @@
     "commands": [
       {
         "command": "dependency-check.showExtensionWindow",
-        "title": "Dependency Check: Open dependency-check window"
+        "title": "Dependency Check: Open dependency-check window."
       }, {
         "command": "dependency-check.checkInstrumentsInstallation",
         "title": "Dependency Check: Check installation of instruments for DC (Java, Maven, etc.)"
       },{
         "command": "dependency-check.updateDependencyCheck",
-        "title": "Dependency Check: Upload and install latest version of DC"
+        "title": "Dependency Check: Upload and install latest version of DC."
       }
     ],
     "configuration": {
@@ -31,17 +31,28 @@
         "dependency-check.pathToDC": {
           "type": "string",
           "default": "",
-          "description": "Write here path to the dependency-check bin folder (C:\\dependency-check\\bin)"
+          "description": "Write here path to the dependency-check bin folder (C:\\dependency-check\\bin)."
+        },
+        "dependency-check.reportFileFormat": {
+            "type": "string",
+            "default": "JSON",
+            "enum": ["XML", "JSON", "HTML"],
+            "description": "Format of the Dependency Check report file."
         },
         "dependency-check.pathToMaven": {
           "type": "string",
           "default": "",
-          "description": "Write here path to the Maven"
+          "description": "Write here path to the Maven."
         },
         "dependency-check.pathToJava": {
           "type": "string",
           "default": "C:\\Program Files (x86)\\Common Files\\Oracle\\Java\\java8path",
-          "description": "Write here path to the Java. But Will configure automatically"
+          "description": "Write here path to the Java. But Will configure automatically."
+        },
+        "dependency-check.disableAutoUpdate": {
+          "type": "boolean",
+          "default": true,
+          "description": "Disabling automatic database updates for the DC. You will need to download the database at least once before enabling this option."
         }
       }
     }

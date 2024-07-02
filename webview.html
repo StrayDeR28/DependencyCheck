@@ -5,15 +5,15 @@
   <title>Dependency Check</title>
   <style>
     #button-container {
-      display: flex;
+      display: flexbox;
       justify-content: center;
       gap: 50px;
-      margin-bottom: 50px;
+      margin-bottom: 20px;
     }
     #progress-bar {
+      display: flexbox;
       width: 50%;
-      background-color: #ddd;
-      margin: 0 auto;
+      background-color: white;
     }
     #progress-bar-fill {
       width: 0%;
@@ -50,8 +50,17 @@
       text-transform: uppercase;
       transition: background-color .6s ease;
     }
+    p{
+      max-width: fit-content; 
+      color:white; 
+      font-size: medium;
+    }
     .hidden {
       display: none;
+    }
+    .highlight {
+      font-weight: bold;
+      color: #FC6E51;
     }
   </style>
 </head>
@@ -63,6 +72,12 @@
   </div>
   <div id="progress-bar">
     <div id="progress-bar-fill">0%</div>
+  </div>
+  <div>
+    <h3>Current settings, you may change them in extension settings.</h3>
+    <p id="reportFileFormat"></p>
+    <p>Report parsing is only allowed from the JSON format.</p>
+    <p id="disableAutoUpdate"></p>
   </div>
   <div id="report-container" class="hidden"></div>
 
@@ -102,6 +117,12 @@
           break;
         case 'errorInFakeProgress':
           errorInFakeProgress();
+          break;
+        case 'setReportFileFormat':
+          document.getElementById('reportFileFormat').innerHTML = `Current dependency-check report file format is: <span class="highlight">${message.format}</span>.`;
+          break;
+        case 'setDisableAutoUpdate':
+          document.getElementById('disableAutoUpdate').innerHTML = `Auto update for dependency-check local data base is: <span class="highlight">${message.disableAutoUpdate ? 'disabled' : 'enabled'}</span>.`;
           break;
       }
     });

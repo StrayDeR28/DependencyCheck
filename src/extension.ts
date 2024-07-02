@@ -41,6 +41,12 @@ export function activate(context: vscode.ExtensionContext)
 			const htmlContent = fs.readFileSync(htmlPath, 'utf8');
 			currentPanel.webview.html = htmlContent;
 
+			const config = vscode.workspace.getConfiguration('dependency-check');
+			const reportFileFormat = config.get<string>('reportFileFormat', 'JSON');
+			const disableAutoUpdate = config.get<boolean>('disableAutoUpdate', true);
+			currentPanel.webview.postMessage({ command: 'setReportFileFormat', format: reportFileFormat });
+			currentPanel.webview.postMessage({ command: 'setDisableAutoUpdate', disableAutoUpdate});
+
 			currentPanel.webview.onDidReceiveMessage(
 				message => handleWebviewMessage(message, currentPanel, execShell),
 				undefined,
@@ -66,7 +72,7 @@ export function activate(context: vscode.ExtensionContext)
 				vscode.window.showInformationMessage(`${command.split(' ')[0]} installed, version: ${output}`);
 			} 
 			catch (error) {
-				vscode.window.showErrorMessage(`Error with ${command.split(' ')[0]}: ${(error as Error).message}`);
+				vscode.window.showWarningMessage(`${command.split(' ')[0]} not installed: ${(error as Error).message}`);
 			}
     }
 	});
@@ -99,17 +105,15 @@ export function activate(context: vscode.ExtensionContext)
 			vscode.window.showInformationMessage(`DC deleted`);
 
 			// Uploading zip
-			const FolderForDCPath = path.dirname(dcFolderPath)
+			const FolderForDCPath = path.dirname(dcFolderPath);
 			const zipPath = path.join(FolderForDCPath, 'dependency-check.zip');
 			vscode.window.showInformationMessage(`Zip path: ${zipPath}`);
 			const downloadCommand = `curl -L "https://github.com/jeremylong/DependencyCheck/releases/download/v${version}/dependency-check-${version}-release.zip" --output-dir "${FolderForDCPath}" --output "dependency-check.zip"`;
 			await execShell(downloadCommand);
-			//vscode.window.showInformationMessage(`Zip downloaded`);
 
 			// Unzipping
 			const unzipCommand = isWindows ? `powershell -command "Expand-Archive -Path '${zipPath}' -DestinationPath '${FolderForDCPath}' -Force"` : `unzip -o "${zipPath}" -d "${FolderForDCPath}"`;
 			await execShell(unzipCommand);
-			//vscode.window.showInformationMessage(`Unzipped`);
 
 			// Deleting zip
 			await execShell(isWindows ? `del "${zipPath}"` : `rm "${zipPath}"`);
@@ -136,6 +140,24 @@ export function activate(context: vscode.ExtensionContext)
 
 		context.subscriptions.push(...watchers);
 	}
+
+	// Tracking changes in extension settings
+	vscode.workspace.onDidChangeConfiguration(event => {
+		if (event.affectsConfiguration('dependency-check.reportFileFormat')) {
+			const config = vscode.workspace.getConfiguration('dependency-check');
+			const reportFileFormat = config.get<string>('reportFileFormat', 'JSON');
+			if (currentPanel) {
+				currentPanel.webview.postMessage({ command: 'setReportFileFormat', format: reportFileFormat });
+			}
+		}
+		else if (event.affectsConfiguration('dependency-check.disableAutoUpdate')){
+			const config = vscode.workspace.getConfiguration('dependency-check');
+			const disableAutoUpdate = config.get<boolean>('disableAutoUpdate', true);
+			if (currentPanel) {
+				currentPanel.webview.postMessage({ command: 'setDisableAutoUpdate', disableAutoUpdate});
+			}
+		}
+	});
 }
 
 export function deactivate() {}
@@ -159,18 +181,26 @@ async function runDependencyCheck(currentPanel: vscode.WebviewPanel | undefined,
 
 	currentPanel?.webview.postMessage({ command: 'startFakeProgress' });
 	try {
-		vscode.window.showInformationMessage('Started Dependency Check');
 		await execShell(osDCCommand, { cwd: pathToDC });
+	} 
+	catch {
+		vscode.window.showWarningMessage(`Warning! Problem in DC running. Check dependency-check-report if exists.`);
+	} 
+	finally {
 		currentPanel?.webview.postMessage({ command: 'finishFakeProgress' });
+	}
+	try {
 		// Creating DC report
 		const jsonFilePath = path.join(projectPath, 'dependency-check-report.json');
 		const jsonData = parseJsonFile(jsonFilePath);
 		const vulnerableDependencies = getVulnerableDependencies(jsonData);
+		const vulnerableDependenciesCount = (vulnerableDependencies.length > 0) ? vulnerableDependencies.length : 0;
+		vscode.window.showInformationMessage(`Found ${vulnerableDependenciesCount} vurnerable dependencies.`);
 		const reportHtml = generateHtmlReport(vulnerableDependencies);
 		currentPanel?.webview.postMessage({ command: 'updateReport', html: reportHtml });
 	} 
 	catch (error) {
-		vscode.window.showErrorMessage(`Error: ${(error as Error).message}`);
+		vscode.window.showErrorMessage(`Error in creating DC report: ${(error as Error).message}`);
 		currentPanel?.webview.postMessage({ command: 'errorInFakeProgress' });
 	}
 }
@@ -178,6 +208,8 @@ async function runDependencyCheck(currentPanel: vscode.WebviewPanel | undefined,
 function setConfigurationForDC(): {pathToDC: string, osDCCommand: string, projectPath: string} | undefined {
 	const config = vscode.workspace.getConfiguration('dependency-check');
 	const pathToDC = config.get<string>('pathToDC', '');
+	const reportFileFormat = config.get<string>('reportFileFormat', 'JSON');
+	const disableAutoUpdate = config.get<boolean>('disableAutoUpdate', true) ? "--noupdate" : "";
 	if (pathToDC.length === 0) {
 		vscode.window.showErrorMessage("Set extension options first, path to DC 'bin' folder is empty");
 		return;
@@ -193,9 +225,9 @@ function setConfigurationForDC(): {pathToDC: string, osDCCommand: string, projec
 
 	let osDCCommand = '';
 	if (os.platform() === 'win32') {
-		osDCCommand = `dependency-check.bat --project "Dependency Check" --scan "${projectPath}" --out "${projectPath}" --noupdate --prettyPrint --format "JSON"`;// add "--noupdate" in case of no response
+		osDCCommand = `dependency-check.bat --project "Dependency Check" --scan "${projectPath}" --out "${projectPath}" "${disableAutoUpdate}" --prettyPrint --format "${reportFileFormat}"`;
 	} else {
-		osDCCommand = `./dependency-check.sh --project "Dependency Check" --scan "${projectPath}" --out "${projectPath}" --noupdate --prettyPrint --format "JSON"`;
+		osDCCommand = `./dependency-check.sh --project "Dependency Check" --scan "${projectPath}" --out "${projectPath}" "${disableAutoUpdate}" --prettyPrint --format "${reportFileFormat}"`;
 	}
 
 	return {pathToDC, osDCCommand, projectPath};
