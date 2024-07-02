@@ -1,71 +1,47 @@
-# DependencyCheck README
+# DependencyCheck VSCode extension
 
-This is the README for your extension "DependencyCheck". After writing up a brief description, we recommend including the following sections.
+Данное расширение было разработано в рамках выполнения INT-31 PT_Start_2024.1.
+
+Расширение предназначено для запуска OWASP dependency-check для текущего открытого проекта в VSCode с предоставлением отчета о найденных уязвимостях в файлах с зависимостями проекта.
+Результат сканирования, файл dependency-check-report, помещается в корень текущего проекта.
 
 ## Features
 
-Describe specific features of your extension including screenshots of your extension in action. Image paths are relative to this README file.
+### Список доступных команд:
+ - "showExtensionWindow": Основная команда, её необходимо вызвать, чтобы показать окно расширения.
+ - "checkInstrumentsInstallation": Команда проверяющая наличие установки обязательных для работы dependency-check анализа инструментов. Так-же проверяет наличие часто используемых пакетов.
+ - "updateDependencyCheck": Команда, проверяющая сравнивающая текущую версию dependency-check с актуальной (на github разработчиков), в случае обнаружения отличий в версиях, скачивает новейшую.
+   
+![image](https://github.com/StrayDeR28/PT_Start_DependencyCheck_VS_Code_extension/assets/79637474/05e524a8-c77a-4034-88d1-089eae7c17a1)
 
-For example if there is an image subfolder under your extension project workspace:
+### Запуск сканирования:
+  - Реализовано автоматическое уведомление пользователя при изменении файлов с зависимостями ('package.json', 'packages-lock.json', 'pom.xml', 'build.gradle', 'yarn.lock').
+  - Проведено исследование, на возможность запуска анализа при коммите/пуше в git. Вероятно, возможно реализовать данную фичу, воспользовавшись хуками (pre-commit, pre-push) на bash.
 
-\!\[feature X\]\(images/feature-x.png\)
+### Отображение результата:
+  - Создана отдельная вкладка - webview, для управления расширением и вывода результатов сканирования. На ней представлены кнопка запуска сканирования, кнопка показа распаршенного результата (только отчета формата JSON), прогрессбар для сканирования и текстовая информация о текущих настройках расширения.
+    
+![image](https://github.com/StrayDeR28/PT_Start_DependencyCheck_VS_Code_extension/assets/79637474/952e3a49-7464-4326-8b6b-238db364c98c)
 
-> Tip: Many popular extensions utilize animations. This is an excellent way to show off your extension! We recommend short, focused animations that are easy to follow.
 
-## Requirements
+![Dependency-check-enxtension-show-compressed](https://github.com/StrayDeR28/PT_Start_DependencyCheck_VS_Code_extension/assets/79637474/4fd3a776-a4bd-48b3-89ce-562483ab852c)
 
-If you have any requirements or dependencies, add a section describing those and how to install and configure them.
 
-## Extension Settings
+## Список глобальных настроек расширения:
+  - "disableAutoUpdate": Эквивалентно включению свойства --noupdate для dependency-check. Отключает автообновление локальной базы данных о уязвимостях, чем заметно ускоряет выполнение проверки.
+  - "pathToDC": Путь до папки 'bin', в папке, в которой находится dependency-check на устройстве. По этому же пути будет установливаться новая версия dependency-check при необходимости.
+  - "pathToJava": Путь до Java. Не используется, т.к. dependency-check автоматически определяет доступную на устройстве Java.
+  - "pathToMaven": Путь до Maven. Не используется, т.к. использовал только CLI версию dependency-check.
+  - "reportFileFormat": Настройка формата для файла с отчетом о найденных уязвимых зависимостях. Варианты: {"JSON","XML","HTML"}
 
-Include if your extension adds any VS Code settings through the `contributes.configuration` extension point.
+![image](https://github.com/StrayDeR28/PT_Start_DependencyCheck_VS_Code_extension/assets/79637474/619a3e10-0a5f-495f-bc7f-81daa5845f26)
 
-For example:
+## Требования для работы:
 
-This extension contributes the following settings:
+Для работы dependency-check необходимо иметь актуальную версию Java. 
 
-* `myExtension.enable`: Enable/disable this extension.
-* `myExtension.thing`: Set to `blah` to do something.
+Для запуска расширения ест два варианта:
+* Cкопировать папку с репозиторием в папку с расширениями VS Code (по стандарту путь: C:\Users\Username\.vscode\extensions)
+* В VS Code перейти в раздел с расширениями, сверху-справа нажать на три точки, выбрать варианта "Install from VSIX" и выбрать файл .vsix из репозитория.
 
-## Known Issues
-
-Calling out known issues can help limit users opening duplicate issues against your extension.
-
-## Release Notes
-
-Users appreciate release notes as you update your extension.
-
-### 1.0.0
-
-Initial release of ...
-
-### 1.0.1
-
-Fixed issue #.
-
-### 1.1.0
-
-Added features X, Y, and Z.
-
----
-
-## Following extension guidelines
-
-Ensure that you've read through the extensions guidelines and follow the best practices for creating your extension.
-
-* [Extension Guidelines](https://code.visualstudio.com/api/references/extension-guidelines)
-
-## Working with Markdown
-
-You can author your README using Visual Studio Code. Here are some useful editor keyboard shortcuts:
-
-* Split the editor (`Cmd+\` on macOS or `Ctrl+\` on Windows and Linux).
-* Toggle preview (`Shift+Cmd+V` on macOS or `Shift+Ctrl+V` on Windows and Linux).
-* Press `Ctrl+Space` (Windows, Linux, macOS) to see a list of Markdown snippets.
-
-## For more information
-
-* [Visual Studio Code's Markdown Support](http://code.visualstudio.com/docs/languages/markdown)
-* [Markdown Syntax Reference](https://help.github.com/articles/markdown-basics/)
-
-**Enjoy!**
+![image](https://github.com/StrayDeR28/PT_Start_DependencyCheck_VS_Code_extension/assets/79637474/87c88018-638d-42dc-8a95-7c4c567218c6)
